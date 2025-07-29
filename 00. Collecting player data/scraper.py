@@ -111,14 +111,14 @@ def get_player_stats(name: str):
 
         # Aggregate weapon stats
         for w in response["weapons"]:
-            type = w["type"]
-            weapon_stats[type]["kills"] += w["kills"]
-            weapon_stats[type]["time"] += (
+            weapon_type = w["type"]
+            weapon_stats[weapon_type]["kills"] += w["kills"]
+            weapon_stats[weapon_type]["time"] += round(
                 w["kills"] / w["killsPerMinute"] * 60
                 if w["killsPerMinute"] != 0
                 else 0
             )
-            weapon_stats[type]["headShots"] += round(
+            weapon_stats[weapon_type]["headShots"] += round(
                 (w["headshots"] / 100) * w["kills"]
             )
 
@@ -129,8 +129,8 @@ def get_player_stats(name: str):
             headShotKillRate = (
                 round(w["headShots"] / w["kills"], 2) if w["kills"] != 0 else 0
             )
-            weapon_stats[type].update(
-                {"killsPerMinute": killsPerMinute, "headShotKillRate": headShotKillRate, "time": round(w["time"])}
+            weapon_stats[weapon_type].update(
+                {"killsPerMinute": killsPerMinute, "headShotKillRate": headShotKillRate}
             )
         weapons_flat = flatten_map(weapon_stats)
         player_stats.update(weapons_flat)
@@ -141,16 +141,16 @@ def get_player_stats(name: str):
         }
 
         for v in response["vehicles"]:
-            type = v["type"]
-            if type in VEHICLE_MAP:
-                type = VEHICLE_MAP[type]
-            vehicle_stats[type]["kills"] += v["kills"]
-            vehicle_stats[type]["destroyed"] += v["destroyed"]
-            vehicle_stats[type]["time"] += v["timeIn"]
+            vehicle_type = v["type"]
+            if vehicle_type in VEHICLE_MAP:
+                vehicle_type = VEHICLE_MAP[vehicle_type]
+            vehicle_stats[vehicle_type]["kills"] += v["kills"]
+            vehicle_stats[vehicle_type]["destroyed"] += v["destroyed"]
+            vehicle_stats[vehicle_type]["time"] += v["timeIn"]
 
         # Calculate vehicle metrics
         for vehicle_type in vehicle_stats:
-            v = vehicle_stats[type]
+            v = vehicle_stats[vehicle_type]
             killsPerMinute = (
                 round(v["kills"] / v["time"] * 60, 2) if v["time"] != 0 else 0
             )
@@ -175,7 +175,7 @@ def update_dataset(dataset_title: str, names: list, delay: float = 0.5):
 
     names = list(set(names))
     new_names = []
-    for name in names:
+    for name in names[:10]:
         if exists:
             if name in existing_names:
                 continue
