@@ -24,12 +24,12 @@ def get_livestats():
             f'Succesfully fetched livestats: {response["servers"]} servers and {response["players"]} players active'
         )
         return response["servers"], response["players"]
-    except Exception as e:
+    except:
         log.error(f"Error fetching livestats", exc_info=True)
         return None, None
 
 
-def get_all_servers(delay: float = 0.5):
+def get_all_servers(delay: float):
     """Retrieves data for all currently active Battlefield 4 servers"""
 
     total_servers, _ = get_livestats()
@@ -62,9 +62,9 @@ def get_all_servers(delay: float = 0.5):
             data["servers"].extend(active_servers)
 
             time.sleep(delay)
-
+        log.info()
         return data
-    except Exception as e:
+    except:
         log.error(f"Error fetching servers", exc_info=True)
         return None
 
@@ -78,8 +78,10 @@ def players_from_servers(data: dict):
             for player in server["players"]:
                 name = player["name"]
                 players.append(name)
-        return list(set(players))  # Return only unique names
-    except Exception as e:
+        players = list(set(players))
+        log.info(f"Found {len(players)} unique players currently online.")
+        return players # Return only unique names
+    except:
         log.error(f"Error proceeding players", exc_info=True)
         return None
 
@@ -160,11 +162,11 @@ def get_player_stats(name: str):
         log.info(f"Successfully fetched {name}'s stats")
         return player_stats
 
-    except Exception as e:
+    except:
         log.error(f"Error fetching {name}'s stats", exc_info=True)
 
 
-def update_dataset(dataset_title: str, names: list, delay: float = 0.5):
+def update_dataset(dataset_title: str, names: list, delay: float):
     """Updates a CSV dataset with new player stats."""
     
     exists = os.path.isfile(dataset_title)
@@ -175,7 +177,7 @@ def update_dataset(dataset_title: str, names: list, delay: float = 0.5):
 
     names = list(set(names))
     new_names = []
-    for name in names[:10]:
+    for name in names:
         if exists:
             if name in existing_names:
                 continue
