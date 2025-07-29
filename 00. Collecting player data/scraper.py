@@ -164,7 +164,7 @@ def get_player_stats(name: str):
         log.error(f"Error fetching {name}'s stats", exc_info=True)
 
 
-def update_dataset(dataset_title: str, names: list, delay : float = 0.5):
+def update_dataset(dataset_title: str, names: list, delay: float = 0.5):
     """Updates a CSV dataset with new player stats."""
     
     exists = os.path.isfile(dataset_title)
