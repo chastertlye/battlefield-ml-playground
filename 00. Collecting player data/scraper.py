@@ -3,6 +3,7 @@ import logging as log
 import time
 import pandas as pd
 import os
+from tqdm import tqdm
 from Configuration import (
     PLAYER_BASE_STATS,
     WEAPON_TYPES,
@@ -10,6 +11,7 @@ from Configuration import (
     VEHICLE_MAP,
     BFLIST_BASE,
     GAMETOOLS_BASE,
+    PLAYER_ADDITIONAL_STATS,
 )
 
 log.basicConfig(level=log.INFO, format="%(asctime)s [%(levelname)s]: %(message)s")
@@ -39,33 +41,31 @@ def get_all_servers(delay: float):
     after = None
     currently_fetched = 0
     try:
-        while hasMore:
-            payload = {}
+        with tqdm(total=total_servers, desc="Fetching servers") as pbar:
+            while hasMore:
+                payload = {}
+                if cursor and after:
+                    payload = {"cursor": cursor, "after": after}
+                response = requests.get(BFLIST_BASE + "servers", params=payload).json()
+                currently_fetched += len(response["servers"])
 
-            if cursor and after:
-                payload = {"cursor": cursor, "after": after}
-            response = requests.get(BFLIST_BASE + "servers", params=payload).json()
-            currently_fetched += len(response["servers"])
+                cursor = response["cursor"]
+                hasMore = response["hasMore"]
+                last_ip, last_port = (
+                    response["servers"][-1]["ip"],
+                    response["servers"][-1]["port"],
+                )
+                after = f"{last_ip}:{last_port}"
+                
+                pbar.update(len(response["servers"]))
+                active_servers = [s for s in response["servers"] if len(s["players"]) > 0]
+                data["servers"].extend(active_servers)
 
-            cursor = response["cursor"]
-            hasMore = response["hasMore"]
-            last_ip, last_port = (
-                response["servers"][-1]["ip"],
-                response["servers"][-1]["port"],
-            )
-            after = f"{last_ip}:{last_port}"
-
-            log.info(f"Succesfully fetched {currently_fetched}/{total_servers} servers")
-
-            # Remove servers with no players
-            active_servers = [s for s in response["servers"] if len(s["players"]) > 0]
-            data["servers"].extend(active_servers)
-
-            time.sleep(delay)
-        log.info()
+                time.sleep(delay)
+        log.info(f"Found {len(data['servers'])} active servers currently online.")
         return data
     except:
-        log.error(f"Error fetching servers", exc_info=True)
+        log.error("Error fetching servers", exc_info=True)
         return None
 
 
@@ -82,7 +82,7 @@ def players_from_servers(data: dict):
         log.info(f"Found {len(players)} unique players currently online.")
         return players # Return only unique names
     except:
-        log.error(f"Error proceeding players", exc_info=True)
+        log.error("Error proceeding players", exc_info=True)
         return None
 
 
@@ -159,7 +159,15 @@ def get_player_stats(name: str):
             vehicle_stats[vehicle_type].update({"killsPerMinute": killsPerMinute})
         vehicles_flat = flatten_map(vehicle_stats)
         player_stats.update(vehicles_flat)
-        log.info(f"Successfully fetched {name}'s stats")
+        
+        # Aggregate additional stats
+        additional_stats = {}
+        for stat_category, name_key, value_key in PLAYER_ADDITIONAL_STATS:
+            additional_stats[stat_category] = {
+                item[name_key]: item[value_key] for item in response[stat_category]
+            }
+        additional_flat = flatten_map(additional_stats)
+        player_stats.update(additional_flat)
         return player_stats
 
     except:
@@ -174,18 +182,16 @@ def update_dataset(dataset_title: str, names: list, delay: float):
         stats_df = pd.read_csv(dataset_title)
         existing_names = set(stats_df["userName"].values)
         existing_ids = set(stats_df["id"].values)
-
-    names = list(set(names))
+    else:
+        existing_names = set()
+        existing_ids = set()
+    
+    names = [name for name in names if not name in existing_names]
     new_names = []
-    for name in names:
-        if exists:
-            if name in existing_names:
-                continue
-            stats = get_player_stats(name)
-            if stats and stats["id"] in existing_ids:
-                continue
-        else:
-            stats = get_player_stats(name)
+    for name in tqdm(names):
+        stats = get_player_stats(name)
+        if stats and stats["id"] in existing_ids:
+            continue
         if stats:
             new_names.append(stats)
         time.sleep(delay)
@@ -195,4 +201,4 @@ def update_dataset(dataset_title: str, names: list, delay: float):
         new_names_df.to_csv(dataset_title, mode="a", index=False, header=not exists)
         log.info(f"Added new {len(new_names)} players to dataset")
     else:
-        log.warning(f"No players were added to dataset")
+        log.warning("No players were added to dataset")

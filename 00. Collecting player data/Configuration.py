@@ -30,6 +30,13 @@ PLAYER_BASE_STATS = [
     "highestKillStreak",
 ]
 
+#
+PLAYER_ADDITIONAL_STATS = [
+    ["classes", "className", "score"],
+    ["gamemodes", "gamemodeName", "score"],
+    ["progress", "progressName", "current"]
+]
+
 # Weapon categories in Battlefield 4
 WEAPON_TYPES = [
     "LMGs",
